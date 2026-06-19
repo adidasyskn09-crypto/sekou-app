@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>施工後写真 PDF作成</title>
+  <style>
+    :root {
+      --primary: #1565C0;
+      --success: #2E7D32;
+      --danger: #B71C1C;
+      --bg: #F4F6F9;
+      --border: #E0E0E0;
+      --text: #212121;
+      --sub: #757575;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    html, body { height: 100%; }
+    body {
+      font-family: -apple-system, 'Hiragino Kaku Gothic Pro', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+    #app { display: flex; flex-direction: column; height: 100vh; }
+    .app-bar {
+      background: var(--primary); color: #fff; padding: 13px 16px;
+      font-size: 17px; font-weight: bold; flex-shrink: 0;
+      display: flex; align-items: center; gap: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.25); position: relative; z-index: 10;
+    }
+    .scroll-area {
+      flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      padding: 12px 12px 80px;
+    }
+    .tab-bar {
+      display: flex; background: #fff; border-top: 1px solid var(--border);
+      flex-shrink: 0; position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tab {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      padding: 8px 4px 6px; border: none; background: none; cursor: pointer;
+      font-size: 11px; color: #9E9E9E; font-family: inherit; gap: 2px; transition: color 0.15s;
+    }
+    .tab.active { color: var(--primary); font-weight: bold; }
+    .tab-icon { font-size: 22px; line-height: 1; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .card {
+      background: #fff; border-radius: 14px; padding: 16px;
+      margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .card-title {
+      font-weight: bold; font-size: 14px; color: var(--primary);
+      margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+    }
+    .form-row { margin-bottom: 11px; }
+    .form-label {
+      display: block; font-size: 12px; font-weight: bold;
+      color: var(--sub); margin-bottom: 5px; letter-spacing: 0.02em;
+    }
+    .form-input {
+      width: 100%; padding: 10px 13px; border: 1.5px solid var(--border);
+      border-radius: 9px; font-size: 16px; font-family: inherit;
+      background: #fff; outline: none; transition: border-color 0.2s; color: var(--text);
+    }
+    .form-input:focus { border-color: var(--primary); }
+    .btn {
+      display: flex; align-items: center; justify-content: center; gap: 6px;
+      width: 100%; padding: 14px; border: none; border-radius: 11px;
+      font-size: 15px; font-weight: bold; font-family: inherit; cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { opacity: 0.8; transform: scale(0.98); }
+    .btn + .btn { margin-top: 9px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-sm { width: auto; padding: 9px 15px; font-size: 13px; }
+    #cat-list { user-select: none; }
+    .cat-item {
+      display: flex; align-items: center; padding: 10px 0;
+      border-bottom: 1px solid #F5F5F5; gap: 8px; transition: background 0.1s;
+    }
+    .cat-item:last-child { border-bottom: none; }
+    .cat-item.dragging { opacity: 0.5; background: #E3F2FD; border-radius: 8px; }
+    .cat-item.drag-over { border-top: 2px solid var(--primary); }
+    .cat-handle { color: #C8C8C8; font-size: 20px; cursor: grab; padding: 0 2px; touch-action: none; }
+    .cat-name { flex: 1; font-size: 15px; }
+    .cat-del {
+      background: none; border: none; font-size: 22px; cursor: pointer;
+      color: #CFCFCF; padding: 2px 5px; line-height: 1; transition: color 0.15s;
+    }
+    .cat-del:active { color: var(--danger); }
+    .add-row { display: flex; gap: 8px; margin-top: 12px; align-items: center; }
+    .add-row .form-input { flex: 1; }
+    .prog-card {
+      background: #fff; border-radius: 14px; padding: 13px 16px;
+      margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    }
+    .prog-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 7px; }
+    .prog-count { font-size: 18px; font-weight: bold; color: var(--primary); }
+    .prog-label { font-size: 13px; color: var(--sub); }
+    .prog-bar { height: 6px; background: #E0E0E0; border-radius: 3px; overflow: hidden; }
+    .prog-fill { height: 100%; background: linear-gradient(90deg, #43A047, #66BB6A); border-radius: 3px; transition: width 0.35s ease; }
+    .photo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .photo-item {
+      background: #fff; border-radius: 11px; overflow: hidden;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer; position: relative;
+    }
+    .photo-item:active { opacity: 0.8; }
+    .photo-frame {
+      width: 100%; aspect-ratio: 4/3; background: #E8F0FE;
+      display: flex; align-items: center; justify-content: center; overflow: hidden;
+    }
+    .photo-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-empty { display: flex; flex-direction: column; align-items: center; color: #90CAF9; gap: 5px; }
+    .photo-empty .ei { font-size: 28px; }
+    .photo-empty .et { font-size: 10px; font-weight: bold; }
+    .photo-badge {
+      position: absolute; top: 5px; right: 5px; background: #43A047; color: #fff;
+      border-radius: 50%; width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    }
+    .photo-label {
+      padding: 7px 6px; font-size: 12px; font-weight: bold; text-align: center;
+      border-top: 1px solid #F0F0F0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    #overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65);
+      z-index: 999; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; gap: 16px;
+    }
+    #overlay.show { display: flex; }
+    .spinner {
+      width: 48px; height: 48px; border: 4px solid rgba(255,255,255,0.3);
+      border-top-color: #fff; border-radius: 50%; animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    #overlay-msg { font-size: 16px; font-weight: bold; }
+    #fileInput { display: none; }
+    .mt10 { margin-top: 10px; }
+    .hint { font-size: 12px; color: var(--sub); text-align: center; margin-top: 8px; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div class="app-bar"><span>📸</span><span>施工後写真 PDF作成</span></div>
+  <div class="scroll-area">
+
+    <div id="screen-setup" class="screen active">
+      <div class="card">
+        <div class="card-title">🏢 物件情報</div>
+        <div class="form-row">
+          <label class="form-label">ビル名・物件名</label>
+          <input class="form-input" id="inp-building" type="text" placeholder="例: GTビル">
+        </div>
+        <div class="form-row">
+          <label class="form-label">部屋番号</label>
+          <input class="form-input" id="inp-room" type="text" placeholder="例: 201号室">
+        </div>
+        <div class="form-row">
+          <label class="form-label">日付</label>
+          <input class="form-input" id="inp-date" type="date">
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 撮影項目（順番はドラッグで変更可）</div>
+        <div id="cat-list"></div>
+        <div class="add-row">
+          <input class="form-input" id="inp-newcat" type="text" placeholder="項目名を追加..." maxlength="24">
+          <button class="btn btn-primary btn-sm" onclick="addCategory()">＋追加</button>
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="goPhotos()">📷 撮影画面へ →</button>
+    </div>
+
+    <div id="screen-photos" class="screen">
+      <div class="prog-card">
+        <div class="prog-row">
+          <span class="prog-count" id="prog-count">0 / 0</span>
+          <span class="prog-label">撮影済み</span>
+        </div>
+        <div class="prog-bar"><div class="prog-fill" id="prog-fill" style="width:0%"></div></div>
+      </div>
+      <div class="photo-grid" id="photo-grid"></div>
+      <div class="mt10">
+        <button class="btn btn-success" onclick="generatePDF()">📄 PDFを作成する</button>
+        <p class="hint">※ 撮影していない項目は空欄でPDFに出力されます</p>
+      </div>
+    </div>
+
+  </div>
+  <div class="tab-bar">
+    <button class="tab active" id="tab-setup" onclick="switchTab('setup')"><span class="tab-icon">⚙️</span>設定</button>
+    <button class="tab" id="tab-photos" onclick="switchTab('photos')"><span class="tab-icon">📷</span>撮影・PDF</button>
+  </div>
+</div>
+
+<div id="overlay"><div class="spinner"></div><div id="overlay-msg">PDF作成中...</div></div>
+<input type="file" id="fileInput" accept="image/*" capture="environment" onchange="onPhotoSelected(event)">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+'use strict';
+const DEFAULT_CATEGORIES = ['部屋番号','玄関タタキ','キッチン','防水パン','浴室','居室','エアコン','押入','下駄箱'];
+let state = { building:'GTビル', room:'201号室', date:todayStr(), categories:[...DEFAULT_CATEGORIES], photos:{} };
+
+function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+function saveState() {
+  try {
+    localStorage.setItem('seko_meta', JSON.stringify({building:state.building, room:state.room, date:state.date, categories:state.categories}));
+    localStorage.setItem('seko_photos', JSON.stringify(state.photos));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const m = localStorage.getItem('seko_meta');
+    const p = localStorage.getItem('seko_photos');
+    if (m) Object.assign(state, JSON.parse(m));
+    if (p) state.photos = JSON.parse(p);
+  } catch(e) {}
+}
+
+window.addEventListener('DOMContentLoaded', () => {
+  loadState();
+  document.getElementById('inp-building').value = state.building;
+  document.getElementById('inp-room').value = state.room;
+  document.getElementById('inp-date').value = state.date;
+  document.getElementById('inp-newcat').addEventListener('keydown', e => { if (e.key === 'Enter') addCategory(); });
+  renderCategories();
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('screen-' + name).classList.add('active');
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'photos') { syncSetup(); renderPhotoGrid(); }
+}
+function goPhotos() { switchTab('photos'); }
+
+function syncSetup() {
+  state.building = document.getElementById('inp-building').value.trim() || 'ビル名';
+  state.room = document.getElementById('inp-room').value.trim() || '部屋番号';
+  state.date = document.getElementById('inp-date').value || todayStr();
+  saveState();
+}
+
+function renderCategories() {
+  const list = document.getElementById('cat-list');
+  list.innerHTML = '';
+  state.categories.forEach((cat, i) => {
+    const div = document.createElement('div');
+    div.className = 'cat-item'; div.draggable = true; div.dataset.index = i;
+    div.innerHTML = '<span class="cat-handle">☰</span><span class="cat-name">' + esc(cat) + '</span>' +
+      '<button class="cat-del" onclick="deleteCategory(' + i + ')">×</button>';
+    div.addEventListener('dragstart', onDragStart);
+    div.addEventListener('dragover', onDragOver);
+    div.addEventListener('drop', onDrop);
+    div.addEventListener('dragend', onDragEnd);
+    list.appendChild(div);
+  });
+}
+
+let _di = null;
+function onDragStart(e) { _di = +e.currentTarget.dataset.index; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
+function onDragOver(e) { e.preventDefault(); document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('drag-over')); e.currentTarget.classList.add('drag-over'); }
+function onDrop(e) { e.preventDefault(); const t = +e.currentTarget.dataset.index; if (_di !== null && _di !== t) { const a = state.categories; a.splice(t, 0, a.splice(_di, 1)[0]); renderCategories(); saveState(); } }
+function onDragEnd(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('drag-over')); _di = null; }
+
+function addCategory() {
+  const inp = document.getElementById('inp-newcat');
+  const name = inp.value.trim();
+  if (!name) return;
+  if (state.categories.includes(name)) { alert('「' + name + '」はすでに存在します'); return; }
+  state.categories.push(name); inp.value = ''; renderCategories(); saveState();
+}
+function deleteCategory(i) {
+  if (!confirm('「' + state.categories[i] + '」を削除しますか？')) return;
+  delete state.photos[state.categories[i]]; state.categories.splice(i, 1); renderCategories(); saveState();
+}
+
+function renderPhotoGrid() {
+  const grid = document.getElementById('photo-grid');
+  grid.innerHTML = '';
+  const total = state.categories.length;
+  const done = state.categories.filter(c => state.photos[c]).length;
+  document.getElementById('prog-count').textContent = done + ' / ' + total;
+  document.getElementById('prog-fill').style.width = total ? (done / total * 100) + '%' : '0%';
+  state.categories.forEach(cat => {
+    const item = document.createElement('div');
+    item.className = 'photo-item';
+    item.onclick = () => startCapture(cat);
+    if (state.photos[cat]) {
+      item.innerHTML = '<div class="photo-frame"><img src="' + state.photos[cat] + '" alt="' + esc(cat) + '"></div>' +
+        '<div class="photo-label">' + esc(cat) + '</div><div class="photo-badge">✓</div>';
+    } else {
+      item.innerHTML = '<div class="photo-frame"><div class="photo-empty"><span class="ei">📷</span><span class="et">タップして撮影</span></div></div>' +
+        '<div class="photo-label">' + esc(cat) + '</div>';
+    }
+    grid.appendChild(item);
+  });
+}
+
+let _cc = null;
+function startCapture(cat) { _cc = cat; const inp = document.getElementById('fileInput'); inp.value = ''; inp.click(); }
+function onPhotoSelected(e) {
+  const file = e.target.files[0];
+  if (!file || !_cc) return;
+  const reader = new FileReader();
+  reader.onload = ev => resizeImage(ev.target.result, 1600, 1200, data => { state.photos[_cc] = data; saveState(); renderPhotoGrid(); });
+  reader.readAsDataURL(file);
+}
+function resizeImage(src, mW, mH, cb) {
+  const img = new Image();
+  img.onload = () => {
+    const r = Math.min(1, mW / img.width, mH / img.height);
+    const w = Math.round(img.width * r), h = Math.round(img.height * r);
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(img, 0, 0, w, h); cb(c.toDataURL('image/jpeg', 0.88));
+  };
+  img.src = src;
+}
+
+async function generatePDF() {
+  syncSetup();
+  if (!Object.keys(state.photos).length) { alert('写真を撮影してください'); return; }
+  showOverlay('PDF作成中...'); await sleep(80);
+  try { await buildPDF(); } catch(err) { alert('エラー: ' + err.message); } finally { hideOverlay(); }
+}
+
+async function buildPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'pt', format: 'a4' });
+  const PW = 595.28, PH = 841.89, mg = 28, cg = 8;
+  const cW = (PW - mg * 2 - cg) / 2, hH = 54, hG = 8, lH = 27, rG = 7;
+  const avail = PH - mg * 2 - hH - hG;
+  const rH = (avail - rG * 2) / 3, pH = rH - lH;
+  const PG = 6, pages = Math.ceil(state.categories.length / PG);
+  const tS = state.building + ' ' + state.room, dS = fmtDateJP(state.date);
+  const L = { PW, PH, mg, cg, cW, hH, hG, lH, rG, rH, pH };
+  for (let p = 0; p < pages; p++) {
+    if (p > 0) doc.addPage();
+    const cats = state.categories.slice(p * PG, (p + 1) * PG);
+    const cv = await drawPage(cats, tS, dS, L);
+    doc.addImage(cv.toDataURL('image/jpeg', 0.93), 'JPEG', 0, 0, PW, PH);
+  }
+  doc.save((tS + '_施工後写真_' + state.date + '.pdf').replace(/\s+/g, '_'));
+}
+
+async function drawPage(cats, tS, dS, L) {
+  const { PW, PH, mg, cg, cW, hH, hG, lH, rG, rH, pH } = L;
+  const SC = 2, cv = document.createElement('canvas');
+  cv.width = Math.round(PW * SC); cv.height = Math.round(PH * SC);
+  const ctx = cv.getContext('2d'); ctx.scale(SC, SC);
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, PW, PH);
+  const F = "'Hiragino Kaku Gothic Pro','Hiragino Sans','Yu Gothic','Meiryo',sans-serif";
+  const hY = mg;
+  ctx.lineWidth = 2; ctx.strokeStyle = '#000'; ctx.strokeRect(mg, hY, cW, hH);
+  ctx.fillStyle = '#000'; ctx.font = 'bold 20px ' + F; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(tS, mg + cW / 2, hY + hH / 2);
+  const rX = mg + cW + cg; ctx.strokeRect(rX, hY, cW, hH);
+  const dlW = 34; ctx.lineWidth = 1; ctx.beginPath();
+  ctx.moveTo(rX + dlW, hY + 1); ctx.lineTo(rX + dlW, hY + hH - 1); ctx.stroke();
+  ctx.font = '12px ' + F; ctx.fillText('日付', rX + dlW / 2, hY + hH / 2);
+  ctx.font = '13px ' + F; ctx.fillText(dS, rX + dlW + (cW - dlW) / 2, hY + hH / 2);
+  const cY = hY + hH + hG;
+  for (let i = 0; i < 6; i++) {
+    const col = i % 2, row = Math.floor(i / 2);
+    const x = mg + col * (cW + cg), y = cY + row * (rH + rG), cat = cats[i];
+    ctx.lineWidth = 1; ctx.strokeStyle = '#000'; ctx.strokeRect(x, y, cW, pH);
+    if (cat && state.photos[cat]) await drawFit(ctx, state.photos[cat], x + 1, y + 1, cW - 2, pH - 2);
+    const lY = y + pH; ctx.strokeRect(x, lY, cW, lH);
+    if (cat) { ctx.fillStyle = '#000'; ctx.font = '13px ' + F; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(cat, x + cW / 2, lY + lH / 2); }
+  }
+  return cv;
+}
+
+function drawFit(ctx, src, x, y, w, h) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const iR = img.width / img.height, bR = w / h;
+      let sx, sy, sw, sh;
+      if (iR > bR) { sh = img.height; sw = sh * bR; sx = (img.width - sw) / 2; sy = 0; }
+      else { sw = img.width; sh = sw / bR; sx = 0; sy = (img.height - sh) / 2; }
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, h); ctx.clip();
+      ctx.drawImage(img, sx, sy, sw, sh, x, y, w, h); ctx.restore(); resolve();
+    };
+    img.onerror = resolve; img.src = src;
+  });
+}
+
+function fmtDateJP(s) {
+  if (!s) return '';
+  const d = new Date(s + 'T00:00:00'), days = ['日','月','火','水','木','金','土'];
+  return d.getFullYear() + '年' + (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + days[d.getDay()] + '曜日';
+}
+function showOverlay(msg) { document.getElementById('overlay-msg').textContent = msg; document.getElementById('overlay').classList.add('show'); }
+function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+</body>
+</html>
