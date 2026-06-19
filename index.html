@@ -128,6 +128,13 @@
       display: flex; align-items: center; justify-content: center;
       font-size: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.3);
     }
+    .photo-del {
+      position: absolute; top: 5px; left: 5px; background: rgba(0,0,0,0.5); color: #fff;
+      border: none; border-radius: 50%; width: 26px; height: 26px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; cursor: pointer; line-height: 1;
+    }
+    .photo-del:active { background: rgba(180,0,0,0.8); }
     .photo-label {
       padding: 7px 6px; font-size: 12px; font-weight: bold; text-align: center;
       border-top: 1px solid #F0F0F0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -159,11 +166,11 @@
         <div class="card-title">🏢 物件情報</div>
         <div class="form-row">
           <label class="form-label">ビル名・物件名</label>
-          <input class="form-input" id="inp-building" type="text" placeholder="例: GTビル">
+          <input class="form-input" id="inp-building" type="text" placeholder="例: ○○ビル">
         </div>
         <div class="form-row">
           <label class="form-label">部屋番号</label>
-          <input class="form-input" id="inp-room" type="text" placeholder="例: 201号室">
+          <input class="form-input" id="inp-room" type="text" placeholder="例: ○○号室">
         </div>
         <div class="form-row">
           <label class="form-label">日付</label>
@@ -209,7 +216,7 @@
 <script>
 'use strict';
 const DEFAULT_CATEGORIES = ['部屋番号','玄関タタキ','キッチン','防水パン','浴室','居室','エアコン','押入','下駄箱'];
-let state = { building:'GTビル', room:'201号室', date:todayStr(), categories:[...DEFAULT_CATEGORIES], photos:{} };
+let state = { building:'', room:'', date:todayStr(), categories:[...DEFAULT_CATEGORIES], photos:{} };
 
 function todayStr() { return new Date().toISOString().split('T')[0]; }
 
@@ -222,6 +229,12 @@ function saveState() {
 
 function loadState() {
   try {
+    if (localStorage.getItem('seko_ver') !== '2') {
+      localStorage.removeItem('seko_meta');
+      localStorage.removeItem('seko_photos');
+      localStorage.setItem('seko_ver', '2');
+      return;
+    }
     const m = localStorage.getItem('seko_meta');
     const p = localStorage.getItem('seko_photos');
     if (m) Object.assign(state, JSON.parse(m));
@@ -248,8 +261,8 @@ function switchTab(name) {
 function goPhotos() { switchTab('photos'); }
 
 function syncSetup() {
-  state.building = document.getElementById('inp-building').value.trim() || 'ビル名';
-  state.room = document.getElementById('inp-room').value.trim() || '部屋番号';
+  state.building = document.getElementById('inp-building').value.trim();
+  state.room = document.getElementById('inp-room').value.trim();
   state.date = document.getElementById('inp-date').value || todayStr();
   saveState();
 }
@@ -408,13 +421,20 @@ function renderPhotoGrid() {
     item.onclick = () => startCapture(cat);
     if (state.photos[cat]) {
       item.innerHTML = '<div class="photo-frame"><img src="' + state.photos[cat] + '" alt="' + esc(cat) + '"></div>' +
-        '<div class="photo-label">' + esc(cat) + '</div><div class="photo-badge">✓</div>';
+        '<div class="photo-label">' + esc(cat) + '</div><div class="photo-badge">✓</div>' +
+        '<button class="photo-del" title="写真を削除">🗑</button>';
+      item.querySelector('.photo-del').onclick = (e) => { e.stopPropagation(); deletePhoto(cat); };
     } else {
       item.innerHTML = '<div class="photo-frame"><div class="photo-empty"><span class="ei">📷</span><span class="et">タップして撮影</span></div></div>' +
         '<div class="photo-label">' + esc(cat) + '</div>';
     }
     grid.appendChild(item);
   });
+}
+
+function deletePhoto(cat) {
+  delete state.photos[cat];
+  saveState(); renderPhotoGrid();
 }
 
 let _cc = null;
