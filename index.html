@@ -18,8 +18,7 @@
     html, body { height: 100%; }
     body {
       font-family: -apple-system, 'Hiragino Kaku Gothic Pro', 'Hiragino Sans', 'Yu Gothic', 'Meiryo', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      background: var(--bg); color: var(--text);
     }
     #app { display: flex; flex-direction: column; height: 100vh; }
     .app-bar {
@@ -75,6 +74,7 @@
     .btn + .btn { margin-top: 9px; }
     .btn-primary { background: var(--primary); color: #fff; }
     .btn-success { background: var(--success); color: #fff; }
+    .btn-drive { background: #1a73e8; color: #fff; }
     .btn-sm { width: auto; padding: 9px 15px; font-size: 13px; }
     #cat-list { user-select: none; }
     .cat-item {
@@ -154,6 +154,69 @@
     #fileInput { display: none; }
     .mt10 { margin-top: 10px; }
     .hint { font-size: 12px; color: var(--sub); text-align: center; margin-top: 8px; }
+
+    /* ── 管理画面 ── */
+    .setup-guide {
+      background: #FFF8E1; border: 1.5px solid #FFD54F;
+      border-radius: 14px; padding: 16px; margin-bottom: 12px;
+    }
+    .setup-guide h3 { font-size: 14px; margin-bottom: 10px; color: #E65100; }
+    .setup-guide ol { padding-left: 20px; font-size: 13px; line-height: 2.1; color: var(--text); }
+    .setup-guide a { color: var(--primary); }
+    .setup-guide code {
+      background: #FFF3E0; border-radius: 4px; padding: 1px 5px;
+      font-size: 12px; font-family: monospace;
+    }
+    .refresh-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .btn-refresh {
+      background: none; border: 1.5px solid var(--border);
+      border-radius: 9px; padding: 7px 14px; font-size: 13px;
+      font-family: inherit; cursor: pointer; color: var(--text);
+      display: flex; align-items: center; gap: 5px;
+    }
+    .btn-refresh:active { background: #eee; }
+    .login-status { font-size: 12px; color: var(--sub); }
+    .login-status.ok { color: var(--success); }
+    .filter-bar {
+      display: flex; gap: 8px; overflow-x: auto; padding: 2px 0 10px;
+      -webkit-overflow-scrolling: touch; flex-wrap: nowrap; scrollbar-width: none;
+    }
+    .filter-bar::-webkit-scrollbar { display: none; }
+    .filter-chip {
+      padding: 6px 16px; border-radius: 20px; border: 1.5px solid var(--border);
+      background: #fff; font-size: 13px; font-family: inherit; cursor: pointer;
+      white-space: nowrap; color: var(--text); transition: all 0.15s; flex-shrink: 0;
+    }
+    .filter-chip.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+    .pdf-list { display: flex; flex-direction: column; gap: 10px; }
+    .pdf-item {
+      background: #fff; border-radius: 14px; padding: 14px 16px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .pdf-info { flex: 1; min-width: 0; }
+    .pdf-title {
+      font-weight: bold; font-size: 15px; margin-bottom: 3px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .pdf-meta { font-size: 12px; color: var(--sub); }
+    .pdf-dl {
+      background: #1a73e8; color: #fff; border: none;
+      border-radius: 9px; padding: 10px 14px; font-size: 18px;
+      cursor: pointer; flex-shrink: 0; text-decoration: none; line-height: 1;
+    }
+    .pdf-dl:active { opacity: 0.8; }
+    .mgmt-empty { text-align: center; padding: 48px 0; color: var(--sub); }
+    .mgmt-empty .ei { font-size: 40px; display: block; margin-bottom: 10px; }
+    .mgmt-empty p { font-size: 14px; }
+    .btn-login {
+      background: #fff; color: #1a73e8; border: 2px solid #1a73e8;
+      border-radius: 11px; padding: 13px 20px; font-size: 15px;
+      font-weight: bold; font-family: inherit; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      width: 100%; margin-bottom: 16px; transition: background 0.15s;
+    }
+    .btn-login:active { background: #e8f0fe; }
   </style>
 </head>
 <body>
@@ -161,9 +224,14 @@
   <div class="app-bar"><span>📸</span><span>施工後写真 PDF作成</span></div>
   <div class="scroll-area">
 
+    <!-- ── 設定画面 ── -->
     <div id="screen-setup" class="screen active">
       <div class="card">
         <div class="card-title">🏢 物件情報</div>
+        <div class="form-row">
+          <label class="form-label">担当者名</label>
+          <input class="form-input" id="inp-sender" type="text" placeholder="例: 田中">
+        </div>
         <div class="form-row">
           <label class="form-label">ビル名・物件名</label>
           <input class="form-input" id="inp-building" type="text" placeholder="例: ○○ビル">
@@ -188,6 +256,7 @@
       <button class="btn btn-primary" onclick="goPhotos()">📷 撮影画面へ →</button>
     </div>
 
+    <!-- ── 撮影・PDF画面 ── -->
     <div id="screen-photos" class="screen">
       <div class="prog-card">
         <div class="prog-row">
@@ -198,8 +267,38 @@
       </div>
       <div class="photo-grid" id="photo-grid"></div>
       <div class="mt10">
-        <button class="btn btn-success" onclick="generatePDF()">📄 PDFを作成する</button>
+        <button class="btn btn-success" onclick="generatePDF()">📄 PDFを作成・保存</button>
+        <button class="btn btn-drive" onclick="generateAndUpload()" id="btn-drive" style="display:none">☁️ PDFを作成してGoogleドライブに保存</button>
         <p class="hint">※ 撮影していない項目は空欄でPDFに出力されます</p>
+      </div>
+    </div>
+
+    <!-- ── 管理画面 ── -->
+    <div id="screen-manage" class="screen">
+      <div id="mgmt-guide" class="setup-guide" style="display:none">
+        <h3>⚠️ Googleドライブ連携の設定が必要です</h3>
+        <ol>
+          <li><a href="https://console.cloud.google.com" target="_blank">Google Cloud Console</a> でプロジェクトを作成</li>
+          <li>「APIとサービス」→「APIを有効化」→ <strong>Google Drive API</strong> を有効化</li>
+          <li>「認証情報」→「認証情報を作成」→「OAuthクライアントID」</li>
+          <li>アプリケーションの種類：<strong>ウェブアプリケーション</strong></li>
+          <li>「承認済みのJavaScriptオリジン」にこのアプリのURLを追加</li>
+          <li>クライアントIDをコピーして <code>GOOGLE_CLIENT_ID</code> に貼り付け</li>
+          <li>Googleドライブで共有フォルダを作り、チームメンバーと共有</li>
+          <li>フォルダURLの末尾のIDを <code>DRIVE_FOLDER_ID</code> に貼り付け</li>
+        </ol>
+      </div>
+      <div class="refresh-row">
+        <span class="login-status" id="login-status"></span>
+        <button class="btn-refresh" onclick="loadManagement()">🔄 更新</button>
+      </div>
+      <button class="btn-login" id="btn-login" onclick="loginAndLoad()" style="display:none">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Googleアカウントでログイン
+      </button>
+      <div class="filter-bar" id="filter-bar"></div>
+      <div class="pdf-list" id="pdf-list">
+        <div class="mgmt-empty"><span class="ei">📁</span><p>PDFがまだありません</p></div>
       </div>
     </div>
 
@@ -207,22 +306,77 @@
   <div class="tab-bar">
     <button class="tab active" id="tab-setup" onclick="switchTab('setup')"><span class="tab-icon">⚙️</span>設定</button>
     <button class="tab" id="tab-photos" onclick="switchTab('photos')"><span class="tab-icon">📷</span>撮影・PDF</button>
+    <button class="tab" id="tab-manage" onclick="switchTab('manage')"><span class="tab-icon">📁</span>管理</button>
   </div>
 </div>
 
 <div id="overlay"><div class="spinner"></div><div id="overlay-msg">PDF作成中...</div></div>
 <input type="file" id="fileInput" accept="image/*" onchange="onPhotoSelected(event)">
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async></script>
+
 <script>
 'use strict';
+
+// ─── GOOGLE DRIVE CONFIG ─────────────────────────────────────────────────────
+// Google Cloud Console で取得した OAuth 2.0 クライアントID を貼り付けてください
+const GOOGLE_CLIENT_ID = "95159992991-vc4bc74vasf5l4u9r1ui0i3affepai6v.apps.googleusercontent.com";
+
+// 共有フォルダのID（DriveのフォルダURLの末尾部分）
+// 例: https://drive.google.com/drive/folders/1ABCxyz → "1ABCxyz"
+// 空文字列にするとマイドライブのルートに保存されます
+const DRIVE_FOLDER_ID = "1UuSJyE9pRB0aDBVPZEfIH_LUQuHbCK4U";
+// ─────────────────────────────────────────────────────────────────────────────
+
+const GDRIVE_READY = GOOGLE_CLIENT_ID !== "YOUR_CLIENT_ID.apps.googleusercontent.com";
+let tokenClient = null;
+let _token = null;
+
+function initGoogleDrive() {
+  if (!GDRIVE_READY) return;
+  const tryInit = () => {
+    if (window.google && window.google.accounts) {
+      tokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/drive',
+        callback: () => {}
+      });
+      // 撮影画面のDriveボタンを表示
+      const btn = document.getElementById('btn-drive');
+      if (btn) btn.style.display = '';
+    } else {
+      setTimeout(tryInit, 300);
+    }
+  };
+  tryInit();
+}
+
+function getToken() {
+  return new Promise((resolve, reject) => {
+    if (_token) { resolve(_token); return; }
+    if (!tokenClient) { reject(new Error('Google Drive が初期化されていません')); return; }
+    tokenClient.callback = (resp) => {
+      if (resp.error) { reject(new Error(resp.error)); return; }
+      _token = resp.access_token;
+      resolve(_token);
+    };
+    tokenClient.requestAccessToken({ prompt: '' });
+  });
+}
+
+// ─── STATE ───────────────────────────────────────────────────────────────────
 const DEFAULT_CATEGORIES = ['部屋番号','玄関タタキ','キッチン','防水パン','浴室','居室','エアコン','押入','下駄箱'];
-let state = { building:'', room:'', date:todayStr(), categories:[...DEFAULT_CATEGORIES], photos:{} };
+let state = { building:'', room:'', date:todayStr(), sender:'', categories:[...DEFAULT_CATEGORIES], photos:{} };
 
 function todayStr() { return new Date().toISOString().split('T')[0]; }
 
 function saveState() {
   try {
-    localStorage.setItem('seko_meta', JSON.stringify({building:state.building, room:state.room, date:state.date, categories:state.categories}));
+    localStorage.setItem('seko_meta', JSON.stringify({
+      building:state.building, room:state.room, date:state.date,
+      sender:state.sender, categories:state.categories
+    }));
     localStorage.setItem('seko_photos', JSON.stringify(state.photos));
   } catch(e) {}
 }
@@ -230,10 +384,8 @@ function saveState() {
 function loadState() {
   try {
     if (localStorage.getItem('seko_ver') !== '2') {
-      localStorage.removeItem('seko_meta');
-      localStorage.removeItem('seko_photos');
-      localStorage.setItem('seko_ver', '2');
-      return;
+      localStorage.removeItem('seko_meta'); localStorage.removeItem('seko_photos');
+      localStorage.setItem('seko_ver', '2'); return;
     }
     const m = localStorage.getItem('seko_meta');
     const p = localStorage.getItem('seko_photos');
@@ -243,62 +395,59 @@ function loadState() {
 }
 
 window.addEventListener('DOMContentLoaded', () => {
+  initGoogleDrive();
   loadState();
-  document.getElementById('inp-building').value = state.building;
-  document.getElementById('inp-room').value = state.room;
-  document.getElementById('inp-date').value = state.date;
+  document.getElementById('inp-sender').value   = state.sender   || '';
+  document.getElementById('inp-building').value = state.building || '';
+  document.getElementById('inp-room').value     = state.room     || '';
+  document.getElementById('inp-date').value     = state.date;
   document.getElementById('inp-newcat').addEventListener('keydown', e => { if (e.key === 'Enter') addCategory(); });
   renderCategories();
+  if (!GDRIVE_READY) document.getElementById('mgmt-guide').style.display = '';
 });
 
+// ─── TABS ────────────────────────────────────────────────────────────────────
 function switchTab(name) {
   document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.getElementById('screen-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'photos') { syncSetup(); renderPhotoGrid(); }
+  if (name === 'manage') initManageScreen();
 }
 function goPhotos() { switchTab('photos'); }
 
 function syncSetup() {
+  state.sender   = document.getElementById('inp-sender').value.trim();
   state.building = document.getElementById('inp-building').value.trim();
-  state.room = document.getElementById('inp-room').value.trim();
-  state.date = document.getElementById('inp-date').value || todayStr();
+  state.room     = document.getElementById('inp-room').value.trim();
+  state.date     = document.getElementById('inp-date').value || todayStr();
   saveState();
 }
 
+// ─── CATEGORIES ──────────────────────────────────────────────────────────────
 function renderCategories() {
   const list = document.getElementById('cat-list');
   list.innerHTML = '';
   state.categories.forEach((cat, i) => {
     const div = document.createElement('div');
     div.className = 'cat-item'; div.draggable = true; div.dataset.index = i;
-
     const handle = document.createElement('span');
     handle.className = 'cat-handle'; handle.textContent = '☰';
-
     const nameSpan = document.createElement('span');
     nameSpan.className = 'cat-name'; nameSpan.textContent = cat;
-
     const editBtn = document.createElement('button');
-    editBtn.className = 'cat-btn'; editBtn.textContent = '✏️'; editBtn.title = '編集';
+    editBtn.className = 'cat-btn'; editBtn.textContent = '✏️';
     editBtn.onclick = () => startEdit(div, i);
-
     const delBtn = document.createElement('button');
-    delBtn.className = 'cat-btn del'; delBtn.textContent = '×'; delBtn.title = '削除';
+    delBtn.className = 'cat-btn del'; delBtn.textContent = '×';
     delBtn.onclick = () => deleteCategory(i);
-
     div.appendChild(handle); div.appendChild(nameSpan); div.appendChild(editBtn); div.appendChild(delBtn);
-
-    // PC drag
     div.addEventListener('dragstart', onDragStart);
     div.addEventListener('dragover', onDragOver);
     div.addEventListener('drop', onDrop);
     div.addEventListener('dragend', onDragEnd);
-
-    // Touch drag (mobile)
     handle.addEventListener('touchstart', onTouchStart, { passive: false });
-
     list.appendChild(div);
   });
 }
@@ -307,8 +456,7 @@ function startEdit(div, i) {
   const nameSpan = div.querySelector('.cat-name');
   const editBtn  = div.querySelector('.cat-btn:not(.del)');
   const inp = document.createElement('input');
-  inp.className = 'cat-edit-input';
-  inp.value = state.categories[i];
+  inp.className = 'cat-edit-input'; inp.value = state.categories[i];
   nameSpan.replaceWith(inp);
   editBtn.textContent = '✅';
   editBtn.onclick = () => commitEdit(div, i, inp);
@@ -319,67 +467,46 @@ function startEdit(div, i) {
 function commitEdit(div, i, inp) {
   const name = inp.value.trim();
   if (!name) { renderCategories(); return; }
-  if (name !== state.categories[i] && state.categories.includes(name)) {
-    alert('「' + name + '」はすでに存在します'); inp.focus(); return;
-  }
-  // rename photo key if needed
+  if (name !== state.categories[i] && state.categories.includes(name)) { alert('「' + name + '」はすでに存在します'); inp.focus(); return; }
   if (name !== state.categories[i] && state.photos[state.categories[i]]) {
     state.photos[name] = state.photos[state.categories[i]];
     delete state.photos[state.categories[i]];
   }
-  state.categories[i] = name;
-  saveState(); renderCategories();
+  state.categories[i] = name; saveState(); renderCategories();
 }
 
-// ── PC drag ──
+// ─── PC DRAG ─────────────────────────────────────────────────────────────────
 let _di = null;
 function onDragStart(e) { _di = +e.currentTarget.dataset.index; e.currentTarget.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; }
 function onDragOver(e) { e.preventDefault(); document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('drag-over')); e.currentTarget.classList.add('drag-over'); }
 function onDrop(e) { e.preventDefault(); const t = +e.currentTarget.dataset.index; if (_di !== null && _di !== t) { const a = state.categories; a.splice(t, 0, a.splice(_di, 1)[0]); renderCategories(); saveState(); } }
 function onDragEnd(e) { e.currentTarget.classList.remove('dragging'); document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('drag-over')); _di = null; }
 
-// ── Touch drag (mobile) ──
+// ─── TOUCH DRAG ──────────────────────────────────────────────────────────────
 let _touchDragIdx = null, _touchClone = null;
-
 function onTouchStart(e) {
   e.preventDefault();
-  const handle = e.currentTarget;
-  const item = handle.closest('.cat-item');
-  _touchDragIdx = +item.dataset.index;
-  item.classList.add('dragging-touch');
-
-  // ghost clone
+  const handle = e.currentTarget, item = handle.closest('.cat-item');
+  _touchDragIdx = +item.dataset.index; item.classList.add('dragging-touch');
   _touchClone = item.cloneNode(true);
   _touchClone.style.cssText = 'position:fixed;opacity:0.75;pointer-events:none;z-index:9999;width:' + item.offsetWidth + 'px;background:#E3F2FD;border-radius:10px;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
-  document.body.appendChild(_touchClone);
-  _moveTouchClone(e.touches[0]);
-
+  document.body.appendChild(_touchClone); _moveTouchClone(e.touches[0]);
   document.addEventListener('touchmove', onTouchMove, { passive: false });
   document.addEventListener('touchend', onTouchEnd);
 }
-
-function _moveTouchClone(touch) {
-  if (!_touchClone) return;
-  _touchClone.style.left = (touch.clientX - 20) + 'px';
-  _touchClone.style.top  = (touch.clientY - 20) + 'px';
-}
-
+function _moveTouchClone(touch) { if (!_touchClone) return; _touchClone.style.left = (touch.clientX - 20) + 'px'; _touchClone.style.top = (touch.clientY - 20) + 'px'; }
 function onTouchMove(e) {
-  e.preventDefault();
-  _moveTouchClone(e.touches[0]);
-  // highlight target
+  e.preventDefault(); _moveTouchClone(e.touches[0]);
   document.querySelectorAll('.cat-item').forEach(el => el.classList.remove('drag-over'));
   const el = document.elementFromPoint(e.touches[0].clientX, e.touches[0].clientY);
   const target = el && el.closest('.cat-item');
   if (target && +target.dataset.index !== _touchDragIdx) target.classList.add('drag-over');
 }
-
 function onTouchEnd(e) {
   document.removeEventListener('touchmove', onTouchMove);
   document.removeEventListener('touchend', onTouchEnd);
   if (_touchClone) { _touchClone.remove(); _touchClone = null; }
   document.querySelectorAll('.cat-item').forEach(el => { el.classList.remove('dragging-touch'); el.classList.remove('drag-over'); });
-
   if (e.changedTouches.length) {
     const t = e.changedTouches[0];
     const el = document.elementFromPoint(t.clientX, t.clientY);
@@ -387,8 +514,7 @@ function onTouchEnd(e) {
     if (target) {
       const toIdx = +target.dataset.index;
       if (_touchDragIdx !== null && toIdx !== _touchDragIdx) {
-        const a = state.categories;
-        a.splice(toIdx, 0, a.splice(_touchDragIdx, 1)[0]);
+        const a = state.categories; a.splice(toIdx, 0, a.splice(_touchDragIdx, 1)[0]);
         renderCategories(); saveState();
       }
     }
@@ -397,8 +523,7 @@ function onTouchEnd(e) {
 }
 
 function addCategory() {
-  const inp = document.getElementById('inp-newcat');
-  const name = inp.value.trim();
+  const inp = document.getElementById('inp-newcat'); const name = inp.value.trim();
   if (!name) return;
   if (state.categories.includes(name)) { alert('「' + name + '」はすでに存在します'); return; }
   state.categories.push(name); inp.value = ''; renderCategories(); saveState();
@@ -408,16 +533,15 @@ function deleteCategory(i) {
   delete state.photos[state.categories[i]]; state.categories.splice(i, 1); renderCategories(); saveState();
 }
 
+// ─── PHOTO GRID ──────────────────────────────────────────────────────────────
 function renderPhotoGrid() {
-  const grid = document.getElementById('photo-grid');
-  grid.innerHTML = '';
+  const grid = document.getElementById('photo-grid'); grid.innerHTML = '';
   const total = state.categories.length;
   const done = state.categories.filter(c => state.photos[c]).length;
   document.getElementById('prog-count').textContent = done + ' / ' + total;
   document.getElementById('prog-fill').style.width = total ? (done / total * 100) + '%' : '0%';
   state.categories.forEach(cat => {
-    const item = document.createElement('div');
-    item.className = 'photo-item';
+    const item = document.createElement('div'); item.className = 'photo-item';
     item.onclick = () => startCapture(cat);
     if (state.photos[cat]) {
       item.innerHTML = '<div class="photo-frame"><img src="' + state.photos[cat] + '" alt="' + esc(cat) + '"></div>' +
@@ -432,16 +556,12 @@ function renderPhotoGrid() {
   });
 }
 
-function deletePhoto(cat) {
-  delete state.photos[cat];
-  saveState(); renderPhotoGrid();
-}
+function deletePhoto(cat) { delete state.photos[cat]; saveState(); renderPhotoGrid(); }
 
 let _cc = null;
 function startCapture(cat) { _cc = cat; const inp = document.getElementById('fileInput'); inp.value = ''; inp.click(); }
 function onPhotoSelected(e) {
-  const file = e.target.files[0];
-  if (!file || !_cc) return;
+  const file = e.target.files[0]; if (!file || !_cc) return;
   const reader = new FileReader();
   reader.onload = ev => resizeImage(ev.target.result, 1600, 1200, data => { state.photos[_cc] = data; saveState(); renderPhotoGrid(); });
   reader.readAsDataURL(file);
@@ -457,11 +577,42 @@ function resizeImage(src, mW, mH, cb) {
   img.src = src;
 }
 
+// ─── PDF GENERATION ──────────────────────────────────────────────────────────
+let _lastPdfBlob = null;
+let _lastFileName = null;
+
 async function generatePDF() {
   syncSetup();
   if (!Object.keys(state.photos).length) { alert('写真を撮影してください'); return; }
   showOverlay('PDF作成中...'); await sleep(80);
-  try { await buildPDF(); } catch(err) { alert('エラー: ' + err.message); } finally { hideOverlay(); }
+  try {
+    const { blob, fileName } = await buildPDF();
+    _lastPdfBlob = blob;
+    _lastFileName = fileName;
+    // デバイスに保存
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = fileName;
+    a.click(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  } catch(err) { alert('エラー: ' + err.message); }
+  finally { hideOverlay(); }
+}
+
+async function generateAndUpload() {
+  syncSetup();
+  if (!Object.keys(state.photos).length) { alert('写真を撮影してください'); return; }
+  showOverlay('PDF作成中...'); await sleep(80);
+  try {
+    const { blob, fileName } = await buildPDF();
+    _lastPdfBlob = blob;
+    _lastFileName = fileName;
+    showOverlay('Googleドライブに保存中...');
+    await uploadToDrive(blob, fileName);
+    hideOverlay();
+    alert('✅ Googleドライブに保存しました！\n\n管理タブから確認できます。');
+  } catch(err) {
+    hideOverlay();
+    if (err.message !== 'popup_closed_by_user') alert('エラー: ' + err.message);
+  }
 }
 
 async function buildPDF() {
@@ -480,9 +631,148 @@ async function buildPDF() {
     const cv = await drawPage(cats, tS, dS, L);
     doc.addImage(cv.toDataURL('image/jpeg', 0.93), 'JPEG', 0, 0, PW, PH);
   }
-  doc.save((tS + '_施工後写真_' + state.date + '.pdf').replace(/\s+/g, '_'));
+  const fileName = ((tS + '_施工後写真_' + state.date).replace(/[\s　]+/g, '_') + '.pdf');
+  const blob = doc.output('blob');
+  return { blob, fileName };
 }
 
+// ─── GOOGLE DRIVE ─────────────────────────────────────────────────────────────
+async function uploadToDrive(blob, fileName) {
+  const token = await getToken();
+  const sender = state.sender || '不明';
+  const metadata = {
+    name: fileName,
+    mimeType: 'application/pdf',
+    description: `担当:${sender} | ${state.building} ${state.room} | ${state.date}`,
+    properties: {
+      sender:   sender,
+      building: state.building || '',
+      room:     state.room     || '',
+      date:     state.date     || ''
+    }
+  };
+  if (DRIVE_FOLDER_ID) metadata.parents = [DRIVE_FOLDER_ID];
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token },
+    body: form
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (err.error?.code === 401) { _token = null; }
+    throw new Error(err.error?.message || 'Drive upload failed');
+  }
+  return await res.json();
+}
+
+async function listDriveFiles() {
+  const token = await getToken();
+  const parts = ["mimeType='application/pdf'", "trashed=false"];
+  if (DRIVE_FOLDER_ID) parts.push(`'${DRIVE_FOLDER_ID}' in parents`);
+  const q = parts.join(' and ');
+  const fields = 'files(id,name,createdTime,webViewLink,properties,description)';
+  const res = await fetch(
+    `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=${encodeURIComponent(fields)}&orderBy=createdTime+desc&pageSize=100`,
+    { headers: { Authorization: 'Bearer ' + token } }
+  );
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    if (err.error?.code === 401) { _token = null; }
+    throw new Error(err.error?.message || 'Drive list failed');
+  }
+  const data = await res.json();
+  return data.files || [];
+}
+
+// ─── MANAGEMENT SCREEN ────────────────────────────────────────────────────────
+let _allFiles = [], _activeFilter = 'すべて';
+
+function initManageScreen() {
+  if (!GDRIVE_READY) return;
+  if (_token) {
+    loadManagement();
+  } else {
+    document.getElementById('btn-login').style.display = '';
+    document.getElementById('pdf-list').innerHTML = '<div class="mgmt-empty"><span class="ei">🔐</span><p>Googleアカウントでログインしてください</p></div>';
+  }
+}
+
+async function loginAndLoad() {
+  try {
+    await getToken();
+    document.getElementById('btn-login').style.display = 'none';
+    await loadManagement();
+  } catch(e) {
+    if (e.message !== 'popup_closed_by_user') alert('ログインエラー: ' + e.message);
+  }
+}
+
+async function loadManagement() {
+  if (!GDRIVE_READY) return;
+  const list = document.getElementById('pdf-list');
+  list.innerHTML = '<div class="mgmt-empty"><span class="ei">⏳</span><p>読み込み中...</p></div>';
+  document.getElementById('login-status').textContent = '';
+  try {
+    _allFiles = await listDriveFiles();
+    document.getElementById('login-status').className = 'login-status ok';
+    document.getElementById('login-status').textContent = '✓ ログイン済み';
+    document.getElementById('btn-login').style.display = 'none';
+    renderFilter();
+    renderList();
+  } catch(e) {
+    if (!_token) {
+      document.getElementById('btn-login').style.display = '';
+      list.innerHTML = '<div class="mgmt-empty"><span class="ei">🔐</span><p>ログインが必要です</p></div>';
+    } else {
+      list.innerHTML = '<div class="mgmt-empty"><span class="ei">⚠️</span><p>' + esc(e.message) + '</p></div>';
+    }
+  }
+}
+
+function renderFilter() {
+  const bar = document.getElementById('filter-bar'); bar.innerHTML = '';
+  const senders = ['すべて', ...new Set(_allFiles.map(f => (f.properties && f.properties.sender) || '不明'))];
+  senders.forEach(s => {
+    const chip = document.createElement('button');
+    chip.className = 'filter-chip' + (s === _activeFilter ? ' active' : '');
+    chip.textContent = s;
+    chip.onclick = () => { _activeFilter = s; renderFilter(); renderList(); };
+    bar.appendChild(chip);
+  });
+}
+
+function renderList() {
+  const list = document.getElementById('pdf-list');
+  const filtered = _activeFilter === 'すべて'
+    ? _allFiles
+    : _allFiles.filter(f => ((f.properties && f.properties.sender) || '不明') === _activeFilter);
+  if (!filtered.length) {
+    list.innerHTML = '<div class="mgmt-empty"><span class="ei">📁</span><p>PDFがまだありません</p></div>';
+    return;
+  }
+  list.innerHTML = '';
+  filtered.forEach(f => {
+    const p = f.properties || {};
+    const title = ((p.building || '') + ' ' + (p.room || '')).trim() || f.name || '（不明）';
+    const dateStr = p.date || (f.createdTime ? f.createdTime.slice(0, 10) : '');
+    const sender = p.sender || '不明';
+    const item = document.createElement('div'); item.className = 'pdf-item';
+    item.innerHTML =
+      '<div class="pdf-info">' +
+        '<div class="pdf-title">' + esc(title) + '</div>' +
+        '<div class="pdf-meta">' + esc(dateStr) + '　担当: ' + esc(sender) + '</div>' +
+      '</div>' +
+      '<a class="pdf-dl" href="' + esc(f.webViewLink || '') + '" target="_blank" title="Driveで開く">📂</a>';
+    list.appendChild(item);
+  });
+}
+
+// ─── PDF DRAWING ──────────────────────────────────────────────────────────────
 async function drawPage(cats, tS, dS, L) {
   const { PW, PH, mg, cg, cW, hH, hG, lH, rG, rH, pH } = L;
   const SC = 2, cv = document.createElement('canvas');
@@ -526,6 +816,7 @@ function drawFit(ctx, src, x, y, w, h) {
   });
 }
 
+// ─── UTILS ───────────────────────────────────────────────────────────────────
 function fmtDateJP(s) {
   if (!s) return '';
   const d = new Date(s + 'T00:00:00'), days = ['日','月','火','水','木','金','土'];
@@ -534,7 +825,7 @@ function fmtDateJP(s) {
 function showOverlay(msg) { document.getElementById('overlay-msg').textContent = msg; document.getElementById('overlay').classList.add('show'); }
 function hideOverlay() { document.getElementById('overlay').classList.remove('show'); }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
-function esc(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 </script>
 </body>
 </html>
