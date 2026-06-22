@@ -359,7 +359,7 @@
   <div class="tab-bar">
     <button class="tab active" id="tab-setup" onclick="switchTab('setup')"><span class="tab-icon">⚙️</span>設定</button>
     <button class="tab" id="tab-photos" onclick="switchTab('photos')"><span class="tab-icon">📷</span>撮影・PDF</button>
-    <button class="tab" id="tab-manage" onclick="switchTab('manage')"><span class="tab-icon">📁</span>管理</button>
+    <button class="tab" id="tab-manage" onclick="switchTab('manage')"><span class="tab-icon">🔐</span>管理者用</button>
   </div>
 </div>
 
@@ -371,6 +371,7 @@
       onkeydown="if(event.key==='Enter') checkPassword()">
     <div class="pw-error" id="pw-error">パスワードが違います</div>
     <button class="pw-btn" onclick="checkPassword()">確認</button>
+    <button class="pw-btn" style="background:#9E9E9E;margin-top:-6px" onclick="closePwModal()">閉じる</button>
   </div>
 </div>
 <div id="overlay"><div class="spinner"></div><div id="overlay-msg">PDF作成中...</div></div>
@@ -454,6 +455,11 @@ function showPasswordModal() {
   document.getElementById('pw-error').style.display = 'none';
   document.getElementById('pw-modal').classList.add('show');
   setTimeout(() => document.getElementById('pw-input').focus(), 150);
+}
+
+function closePwModal() {
+  document.getElementById('pw-modal').classList.remove('show');
+  switchTab('setup');
 }
 
 function checkPassword() {
