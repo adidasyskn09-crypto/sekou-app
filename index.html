@@ -217,6 +217,52 @@
       width: 100%; margin-bottom: 16px; transition: background 0.15s;
     }
     .btn-login:active { background: #e8f0fe; }
+    /* ── 設定画面 ログインカード ── */
+    .glogin-card {
+      background: #fff; border-radius: 14px; padding: 13px 16px;
+      margin-bottom: 12px; box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+      display: flex; align-items: center; gap: 12px;
+    }
+    .glogin-info { flex: 1; min-width: 0; }
+    .glogin-label { font-size: 12px; font-weight: bold; color: var(--sub); margin-bottom: 3px; }
+    .glogin-val { font-size: 14px; font-weight: bold; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .glogin-val.ok { color: var(--success); }
+    .btn-glogin {
+      background: #1a73e8; color: #fff; border: none;
+      border-radius: 9px; padding: 9px 14px; font-size: 13px;
+      font-weight: bold; font-family: inherit; cursor: pointer; flex-shrink: 0;
+    }
+    .btn-glogin:active { opacity: 0.8; }
+    .btn-glogout {
+      background: none; color: var(--sub); border: 1.5px solid var(--border);
+      border-radius: 9px; padding: 9px 14px; font-size: 13px;
+      font-family: inherit; cursor: pointer; flex-shrink: 0;
+    }
+    /* ── パスワードモーダル ── */
+    #pw-modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.72);
+      z-index: 800; align-items: center; justify-content: center; padding: 24px;
+    }
+    #pw-modal.show { display: flex; }
+    .pw-box {
+      background: #fff; border-radius: 20px; padding: 32px 24px;
+      width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 14px;
+    }
+    .pw-title { font-size: 18px; font-weight: bold; text-align: center; }
+    .pw-sub { font-size: 13px; color: var(--sub); text-align: center; margin-top: -6px; }
+    .pw-input {
+      width: 100%; padding: 14px; border: 1.5px solid var(--border);
+      border-radius: 10px; font-size: 20px; font-family: inherit;
+      text-align: center; letter-spacing: 6px; outline: none;
+    }
+    .pw-input:focus { border-color: var(--primary); }
+    .pw-error { font-size: 13px; color: var(--danger); text-align: center; display: none; }
+    .pw-btn {
+      background: var(--primary); color: #fff; border: none;
+      border-radius: 11px; padding: 14px; font-size: 15px; font-weight: bold;
+      font-family: inherit; cursor: pointer; width: 100%;
+    }
+    .pw-btn:active { opacity: 0.8; }
   </style>
 </head>
 <body>
@@ -226,6 +272,13 @@
 
     <!-- ── 設定画面 ── -->
     <div id="screen-setup" class="screen active">
+      <div class="glogin-card" id="glogin-card" style="display:none">
+        <div class="glogin-info">
+          <div class="glogin-label">🔗 Googleドライブ連携</div>
+          <div class="glogin-val" id="glogin-val">未ログイン</div>
+        </div>
+        <button class="btn-glogin" id="glogin-btn" onclick="loginFromSetup()">ログイン</button>
+      </div>
       <div class="card">
         <div class="card-title">🏢 物件情報</div>
         <div class="form-row">
@@ -310,6 +363,16 @@
   </div>
 </div>
 
+<div id="pw-modal">
+  <div class="pw-box">
+    <div class="pw-title">🔒 管理画面</div>
+    <div class="pw-sub">パスワードを入力してください</div>
+    <input class="pw-input" id="pw-input" type="password" placeholder="••••" maxlength="20"
+      onkeydown="if(event.key==='Enter') checkPassword()">
+    <div class="pw-error" id="pw-error">パスワードが違います</div>
+    <button class="pw-btn" onclick="checkPassword()">確認</button>
+  </div>
+</div>
 <div id="overlay"><div class="spinner"></div><div id="overlay-msg">PDF作成中...</div></div>
 <input type="file" id="fileInput" accept="image/*" onchange="onPhotoSelected(event)">
 
@@ -320,18 +383,17 @@
 'use strict';
 
 // ─── GOOGLE DRIVE CONFIG ─────────────────────────────────────────────────────
-// Google Cloud Console で取得した OAuth 2.0 クライアントID を貼り付けてください
 const GOOGLE_CLIENT_ID = "95159992991-vc4bc74vasf5l4u9r1ui0i3affepai6v.apps.googleusercontent.com";
+const DRIVE_FOLDER_ID  = "";
 
-// 共有フォルダのID（DriveのフォルダURLの末尾部分）
-// 例: https://drive.google.com/drive/folders/1ABCxyz → "1ABCxyz"
-// 空文字列にするとマイドライブのルートに保存されます
-const DRIVE_FOLDER_ID = "1UuSJyE9pRB0aDBVPZEfIH_LUQuHbCK4U";
+// 管理画面のパスワード（変更してください）
+const MGMT_PASSWORD = "032221";
 // ─────────────────────────────────────────────────────────────────────────────
 
 const GDRIVE_READY = GOOGLE_CLIENT_ID !== "YOUR_CLIENT_ID.apps.googleusercontent.com";
 let tokenClient = null;
 let _token = null;
+let _mgmtUnlocked = false;
 
 function initGoogleDrive() {
   if (!GDRIVE_READY) return;
@@ -342,14 +404,69 @@ function initGoogleDrive() {
         scope: 'https://www.googleapis.com/auth/drive',
         callback: () => {}
       });
-      // 撮影画面のDriveボタンを表示
-      const btn = document.getElementById('btn-drive');
-      if (btn) btn.style.display = '';
+      document.getElementById('glogin-card').style.display = '';
+      document.getElementById('btn-drive').style.display = '';
+      updateLoginCard();
     } else {
       setTimeout(tryInit, 300);
     }
   };
   tryInit();
+}
+
+function updateLoginCard() {
+  const val = document.getElementById('glogin-val');
+  const btn = document.getElementById('glogin-btn');
+  if (!val || !btn) return;
+  if (_token) {
+    val.textContent = 'ログイン済み ✓';
+    val.className = 'glogin-val ok';
+    btn.textContent = 'ログアウト';
+    btn.className = 'btn-glogout';
+    btn.onclick = logoutGoogle;
+  } else {
+    val.textContent = '未ログイン';
+    val.className = 'glogin-val';
+    btn.textContent = 'ログイン';
+    btn.className = 'btn-glogin';
+    btn.onclick = loginFromSetup;
+  }
+}
+
+async function loginFromSetup() {
+  try {
+    await getToken();
+    updateLoginCard();
+  } catch(e) {}
+}
+
+function logoutGoogle() {
+  if (window.google && google.accounts && google.accounts.oauth2 && _token) {
+    google.accounts.oauth2.revoke(_token, () => {});
+  }
+  _token = null;
+  updateLoginCard();
+}
+
+// ── パスワードモーダル ──
+function showPasswordModal() {
+  document.getElementById('pw-input').value = '';
+  document.getElementById('pw-error').style.display = 'none';
+  document.getElementById('pw-modal').classList.add('show');
+  setTimeout(() => document.getElementById('pw-input').focus(), 150);
+}
+
+function checkPassword() {
+  const val = document.getElementById('pw-input').value;
+  if (val === MGMT_PASSWORD) {
+    document.getElementById('pw-modal').classList.remove('show');
+    _mgmtUnlocked = true;
+    initManageScreen();
+  } else {
+    document.getElementById('pw-error').style.display = 'block';
+    document.getElementById('pw-input').value = '';
+    document.getElementById('pw-input').focus();
+  }
 }
 
 function getToken() {
@@ -413,7 +530,10 @@ function switchTab(name) {
   document.getElementById('screen-' + name).classList.add('active');
   document.getElementById('tab-' + name).classList.add('active');
   if (name === 'photos') { syncSetup(); renderPhotoGrid(); }
-  if (name === 'manage') initManageScreen();
+  if (name === 'manage') {
+    if (!_mgmtUnlocked) { showPasswordModal(); return; }
+    initManageScreen();
+  }
 }
 function goPhotos() { switchTab('photos'); }
 
